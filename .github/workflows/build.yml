@@ -50,10 +50,11 @@ jobs:
           (Get-Item "$dir/Awake.exe").Length | ForEach-Object { "Awake.exe size: $_ bytes" }
           Compress-Archive -Path "$dir/*" -DestinationPath "Awake-${{ matrix.rid }}.zip"
 
+      # Upload the folder, not the zip: GitHub already zips artifacts on download.
       - uses: actions/upload-artifact@v5
         with:
           name: Awake-${{ matrix.rid }}
-          path: Awake-${{ matrix.rid }}.zip
+          path: dist/Awake-${{ matrix.rid }}/
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
