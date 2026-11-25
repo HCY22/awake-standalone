@@ -6,7 +6,7 @@
     Start menu shortcut that launches Awake in tray mode (Awake.exe -c).
 .PARAMETER Source
     Folder containing Awake.exe. Defaults to the folder this script is in
-    (release zip layout), falling back to .\dist\win-x64.
+    (release zip layout), falling back to .\build\MinSizeRel.
 .PARAMETER Startup
     Also start Awake automatically when you sign in.
 #>
@@ -22,12 +22,12 @@ if (-not $Source) {
     if (Test-Path (Join-Path $PSScriptRoot 'Awake.exe')) {
         $Source = $PSScriptRoot
     } else {
-        $Source = Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\win-x64'
+        $Source = Join-Path (Split-Path -Parent $PSScriptRoot) 'build\MinSizeRel'
     }
 }
 
 if (-not (Test-Path (Join-Path $Source 'Awake.exe'))) {
-    throw "Awake.exe not found in '$Source'. Build first with scripts\build.ps1."
+    throw "Awake.exe not found in '$Source'. Build first: cmake -S . -B build; cmake --build build --config MinSizeRel"
 }
 
 $target = Join-Path $env:LOCALAPPDATA 'Programs\Awake'

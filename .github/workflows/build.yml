@@ -14,31 +14,49 @@ jobs:
   build:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
-        rid: [win-x64, win-arm64]
-        flavor: [framework-dependent, self-contained]
+        include:
+          - arch: x64
+            rid: win-x64
+            test: true
+          - arch: ARM64
+            rid: win-arm64
+            test: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
+      - name: Configure
+        run: cmake -S . -B build -A ${{ matrix.arch }} -DAWAKE_BUILD_TESTS=${{ matrix.test && 'ON' || 'OFF' }}
 
-      - name: Publish
+      - name: Build
+        run: cmake --build build --config MinSizeRel
+
+      - name: Unit tests
+        if: matrix.test
+        run: build/MinSizeRel/awake_tests.exe
+
+      - name: Smoke tests
+        if: matrix.test
+        shell: pwsh
+        run: ./tests/smoke.ps1 -Exe build/MinSizeRel/Awake.exe
+
+      - name: Package
         shell: pwsh
         run: |
-          $sc = '${{ matrix.flavor }}' -eq 'self-contained'
-          ./scripts/build.ps1 -Runtime ${{ matrix.rid }} -SelfContained:$sc
-          Copy-Item scripts/install.ps1, scripts/uninstall.ps1 dist/${{ matrix.rid }}/
-          Compress-Archive -Path dist/${{ matrix.rid }}/* -DestinationPath Awake-${{ matrix.rid }}-${{ matrix.flavor }}.zip
+          $dir = "dist/Awake-${{ matrix.rid }}"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          Copy-Item build/MinSizeRel/Awake.exe, scripts/install.ps1, scripts/uninstall.ps1, LICENSE $dir
+          (Get-Item "$dir/Awake.exe").Length | ForEach-Object { "Awake.exe size: $_ bytes" }
+          Compress-Archive -Path "$dir/*" -DestinationPath "Awake-${{ matrix.rid }}.zip"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
-          name: Awake-${{ matrix.rid }}-${{ matrix.flavor }}
-          path: Awake-${{ matrix.rid }}-${{ matrix.flavor }}.zip
+          name: Awake-${{ matrix.rid }}
+          path: Awake-${{ matrix.rid }}.zip
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: Awake-${{ matrix.rid }}-${{ matrix.flavor }}.zip
+          files: Awake-${{ matrix.rid }}.zip
